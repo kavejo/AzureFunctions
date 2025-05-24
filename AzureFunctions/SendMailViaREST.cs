@@ -13,6 +13,7 @@ public class SendMailViaREST
 {
     private readonly ILogger<SendMailViaREST> _logger;
     private EmailMessageRequest? _emailMessageRequest = null!;
+    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_EMAIL_ENDPOINT" };
     private readonly string? _resourceEndpoint = Environment.GetEnvironmentVariable("ACS_EMAIL_ENDPOINT");
 
     public SendMailViaREST(ILogger<SendMailViaREST> logger)
@@ -24,9 +25,16 @@ public class SendMailViaREST
     public async Task<IActionResult> Run( [HttpTrigger(AuthorizationLevel.Anonymous, "GET", "POST")] HttpRequest req)
     {
         _logger.LogInformation("Entering AzureFunctions:SendMailViaREST.");
-        _logger.LogInformation(String.Format("Host: <{0}>", req.Host));
-        _logger.LogInformation(String.Format("Method: <{0}>", req.Method));
+        _logger.LogInformation(String.Format("Host: {0}.", req.Host));
+        _logger.LogInformation(String.Format("Method: {0}.", req.Method));
 
+        if (!AssertConfiguration.ValidateConfigurationEntries(_logger, _mandatoryConfigurationEntries))
+        {
+            return new ObjectResult(String.Format("One or more of the following environment variables are missing: {0}.", _mandatoryConfigurationEntries))
+            {
+                StatusCode = 500,
+            };
+        }
         if (!AnalyzeRequestIP.IsIpAllowed(req.HttpContext.Connection.RemoteIpAddress, _logger))
         {
             return new UnauthorizedObjectResult(String.Format("Requests coming from IP {0} are not allowed.", req.HttpContext.Connection.RemoteIpAddress));
@@ -34,11 +42,6 @@ public class SendMailViaREST
         if (!String.Equals(req.Method, "GET", StringComparison.OrdinalIgnoreCase) && !String.Equals(req.Method, "POST", StringComparison.OrdinalIgnoreCase))
         {
             return new BadRequestObjectResult(String.Format("Requests method {0} is not allowed.", req.Method));
-        }
-
-        if (String.IsNullOrEmpty(_resourceEndpoint))
-        {
-            return new UnprocessableEntityObjectResult("ACS_EMAIL_ENDPOINT is not set. Please set the ACS_EMAIL_ENDPOINT environment variable."); 
         }
 
         if ( String.Equals(req.Method, "POST",StringComparison.OrdinalIgnoreCase))
@@ -59,12 +62,12 @@ public class SendMailViaREST
                     string bodyContent = await sr.ReadToEndAsync();
                     if (String.IsNullOrEmpty(bodyContent))
                     {
-                        return new UnprocessableEntityObjectResult("Unable to read request body");
+                        return new UnprocessableEntityObjectResult("Unable to read request body.");
                     }
                     _emailMessageRequest = JsonSerializer.Deserialize<EmailMessageRequest>(bodyContent);
                     if (_emailMessageRequest == null)
                     {
-                        return new UnprocessableEntityObjectResult("Unable to deserialize request body");
+                        return new UnprocessableEntityObjectResult("Unable to deserialize request body.");
                     }
                 }
             }
@@ -72,11 +75,11 @@ public class SendMailViaREST
         
         if (String.Equals(req.Method, "GET", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogInformation("Message will be built with all default values");
+            _logger.LogInformation("Message will be built with all default values.");
             _emailMessageRequest = new EmailMessageRequest();
             if (_emailMessageRequest == null)
             {
-                return new UnprocessableEntityObjectResult("Unable to initialize message with default values");
+                return new UnprocessableEntityObjectResult("Unable to initialize message with default values.");
             }
         }
 
@@ -89,7 +92,7 @@ public class SendMailViaREST
         EmailClient emailClient = new EmailClient(new Uri(_resourceEndpoint), new DefaultAzureCredential());
         EmailSendOperation emailSendOperation = await emailClient.SendAsync(WaitUntil.Completed, _emailMessageRequest.RetrieveMessageForREST(_logger));
        
-        _logger.LogInformation(String.Format("Email message processed successfully. The status is: {0}. The CorrelationID is {1}", emailSendOperation.Value.Status, emailSendOperation.Id));
-        return new OkObjectResult(String.Format("Email message processed successfully. The status is: {0}.The CorrelationID is {1}", emailSendOperation.Value.Status, emailSendOperation.Id));
+        _logger.LogInformation(String.Format("Email message processed successfully. The status is: {0}. The CorrelationID is {1}.", emailSendOperation.Value.Status, emailSendOperation.Id));
+        return new OkObjectResult(String.Format("Email message processed successfully. The status is: {0}.The CorrelationID is {1}.", emailSendOperation.Value.Status, emailSendOperation.Id));
     }
 }

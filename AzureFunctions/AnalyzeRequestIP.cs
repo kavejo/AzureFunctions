@@ -1,29 +1,32 @@
 ﻿using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 
 namespace AzureFunctions
 {
     internal class AnalyzeRequestIP
     {
-        private readonly static List<string> _allowedHosts = Environment.GetEnvironmentVariable("ALLOWED_HOSTS").Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
+        private readonly static string _allowedHostsString = Environment.GetEnvironmentVariable("ALLOWED_HOSTS");
+        private static List<string> _allowedHosts = new List<string>(); 
         private static List<string> _allowedIPs = new List<string> { "127.0.0.1" };
 
         public static bool IsIpAllowed(IPAddress? ipAddress, ILogger logger)
         {
             logger.LogInformation("Entering AzureFunctions:AnalyzeRequestIP");
             logger.LogInformation(String.Format("Checking if IP {0} is allowed.", ipAddress == null ? String.Empty : ipAddress.ToString()));
-            logger.LogInformation(String.Format("ALLOWED_HOSTS are: {0}", _allowedHosts == null ? String.Empty : String.Join(",", _allowedHosts)));
+            logger.LogInformation(String.Format("ALLOWED_HOSTS are: {0}", _allowedHostsString == null ? String.Empty : _allowedHostsString));
 
-            if (ipAddress == null || _allowedHosts == null)
+            if (ipAddress == null)
             {
-                logger.LogInformation("Request not allowed as either IP Address is NULL or there are no ALLOWED_HOSTS");
+                logger.LogInformation("Request not allowed as either IP Address is NULL");
                 return false;
             }
+            if (string.IsNullOrEmpty(_allowedHostsString))
+            {
+                logger.LogInformation("Request not allowed as there are no ALLOWED_HOSTS configured");
+                return false;
+            }
+            _allowedHosts = _allowedHostsString.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
 
             foreach (string host in _allowedHosts)
             {
@@ -46,6 +49,7 @@ namespace AzureFunctions
                 return false;
             }
 
+            logger.LogInformation("Request IP is is allowed to make requests");
             return true;
         }
 

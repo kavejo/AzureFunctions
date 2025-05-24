@@ -14,6 +14,7 @@ public class SendMailViaSMTP
 {
     private readonly ILogger<SendMailViaSMTP> _logger;
     private EmailMessageRequest? _emailMessageRequest = null!;
+    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_SMTP_ENDPOINT", "ACS_SMTP_PORT", "ACS_SMTP_USERNAME", "ACS_SMTP_PASSWORD" };
     private readonly string? _smtpEndpoint = Environment.GetEnvironmentVariable("ACS_SMTP_ENDPOINT");
     private readonly string? _smtpPort = Environment.GetEnvironmentVariable("ACS_SMTP_PORT");
     private readonly string? _smtpUsername = Environment.GetEnvironmentVariable("ACS_SMTP_USERNAME");
@@ -29,9 +30,16 @@ public class SendMailViaSMTP
     public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "GET", "POST")] HttpRequest req)
     {
         _logger.LogInformation("Entering AzureFunctions:SendMailViaSMTP.");
-        _logger.LogInformation(String.Format("Host: <{0}>", req.Host));
-        _logger.LogInformation(String.Format("Method: <{0}>", req.Method));
+        _logger.LogInformation(String.Format("Host: {0}.", req.Host));
+        _logger.LogInformation(String.Format("Method: {0}.", req.Method));
 
+        if (!AssertConfiguration.ValidateConfigurationEntries(_logger, _mandatoryConfigurationEntries))
+        {
+            return new ObjectResult(String.Format("One or more of the following environment variables are missing: {0}.", _mandatoryConfigurationEntries))
+            {
+                StatusCode = 500,
+            };
+        }
         if (!AnalyzeRequestIP.IsIpAllowed(req.HttpContext.Connection.RemoteIpAddress, _logger))
         {
             return new UnauthorizedObjectResult(String.Format("Requests coming from IP {0} are not allowed.", req.HttpContext.Connection.RemoteIpAddress));
@@ -41,14 +49,10 @@ public class SendMailViaSMTP
             return new BadRequestObjectResult(String.Format("Requests method {0} is not allowed.", req.Method));
         }
 
-        if (String.IsNullOrEmpty(_smtpEndpoint) || String.IsNullOrEmpty(_smtpPort) || String.IsNullOrEmpty(_smtpUsername) || String.IsNullOrEmpty(_smtpPassword))
-        {
-            return new UnprocessableEntityObjectResult("ACS_SMTP_ENDPOINT, ACS_SMTP_PORT, ACS_SMTP_USERNAME, and ACS_SMTP_PASSWORD are required. Please set them via environment variables.");
-        }
         int.TryParse(_smtpPort, out _numericSmtpPort);
         if (_numericSmtpPort <= 0)
         {
-            return new UnprocessableEntityObjectResult(String.Format("Invalid SMTP port number: {0}", _smtpPort));
+            return new UnprocessableEntityObjectResult(String.Format("Invalid SMTP port number: {0}.", _smtpPort));
         }
 
         if (String.Equals(req.Method, "POST", StringComparison.OrdinalIgnoreCase))
@@ -69,12 +73,12 @@ public class SendMailViaSMTP
                     string bodyContent = await sr.ReadToEndAsync();
                     if (String.IsNullOrEmpty(bodyContent))
                     {
-                        return new UnprocessableEntityObjectResult("Unable to read request body");
+                        return new UnprocessableEntityObjectResult("Unable to read request body.");
                     }
                     _emailMessageRequest = JsonSerializer.Deserialize<EmailMessageRequest>(bodyContent);
                     if (_emailMessageRequest == null)
                     {
-                        return new UnprocessableEntityObjectResult("Unable to deserialize request body");
+                        return new UnprocessableEntityObjectResult("Unable to deserialize request body.");
                     }
                 }
             }
@@ -86,7 +90,7 @@ public class SendMailViaSMTP
             _emailMessageRequest = new EmailMessageRequest();
             if (_emailMessageRequest == null)
             {
-                return new UnprocessableEntityObjectResult("Unable to initialize message with default values");
+                return new UnprocessableEntityObjectResult("Unable to initialize message with default values.");
             }
         }
 
