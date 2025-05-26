@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using Org.BouncyCastle.Cms;
 using System.Security.Authentication;
 using System.Text.Json;
 
@@ -104,11 +105,62 @@ public class SendMailViaEXCH
 
         if (String.Equals(req.Method, "GET", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogInformation("Message will be built with all default values.");
             _emailMessageRequest = new EmailMessageRequest();
             if (_emailMessageRequest == null)
             {
                 return new UnprocessableEntityObjectResult("Unable to initialize message with default values.");
+            }
+            if (req.Query.Count > 0)
+            {
+                _logger.LogInformation("Message will be built with query parameters. Missing values will be set to default.");
+                foreach (var queryParameter in req.Query)
+                {
+                    _logger.LogInformation(String.Format("  Query parameter: {0} = {1}", queryParameter.Key, queryParameter.Value));
+                }
+                if (req.Query.ContainsKey("Type") && !String.IsNullOrEmpty(req.Query["Type"]))
+                {
+                    _emailMessageRequest.Type = (EmailMessageRequestType)Convert.ToInt32(req.Query["Type"]);
+                    _logger.LogInformation(String.Format("Type overridden to: {0}.", req.Query["Type"]));
+                }
+                if (req.Query.ContainsKey("From") && !String.IsNullOrEmpty(req.Query["From"]))
+                {
+                    _emailMessageRequest.From = req.Query["From"];
+                    _logger.LogInformation(String.Format("From overridden to: {0}.", req.Query["From"]));
+                }
+                if (req.Query.ContainsKey("ReplyTo") && !String.IsNullOrEmpty(req.Query["ReplyTo"]))
+                {
+                    _emailMessageRequest.ReplyTo = req.Query["ReplyTo"];
+                    _logger.LogInformation(String.Format("ReplyTo overridden to: {0}.", req.Query["ReplyTo"]));
+                }
+                if (req.Query.ContainsKey("To") && !String.IsNullOrEmpty(req.Query["To"]))
+                {
+                    _emailMessageRequest.To = req.Query["To"];
+                    _logger.LogInformation(String.Format("To overridden to: {0}.", req.Query["To"]));
+                }
+                if (req.Query.ContainsKey("Subject") && !String.IsNullOrEmpty(req.Query["Subject"]))
+                {
+                    _emailMessageRequest.Subject = req.Query["Subject"];
+                    _logger.LogInformation(String.Format("Subject overridden to: {0}.", req.Query["Subject"]));
+                }
+                if (req.Query.ContainsKey("TextBody") && !String.IsNullOrEmpty(req.Query["TextBody"]))
+                {
+                    _emailMessageRequest.TextBody = req.Query["TextBody"];
+                    _logger.LogInformation(String.Format("TextBody overridden to: {0}.", req.Query["TextBody"]));
+                }
+                if (req.Query.ContainsKey("HtmlBody") && !String.IsNullOrEmpty(req.Query["HtmlBody"]))
+                {
+                    _emailMessageRequest.HtmlBody = req.Query["HtmlBody"];
+                    _logger.LogInformation(String.Format("HtmlBody overridden to: {0}.", req.Query["HtmlBody"]));
+                }
+                if (req.Query.ContainsKey("CustomContent") && !String.IsNullOrEmpty(req.Query["CustomContent"]))
+                {
+                    _emailMessageRequest.CustomContent = req.Query["CustomContent"];
+                    _logger.LogInformation(String.Format("CustomContent overridden to: {0}.", req.Query["CustomContent"]));
+                }
+            }
+            else
+            {
+                _logger.LogInformation("Message built with all default values.");
             }
         }
 
