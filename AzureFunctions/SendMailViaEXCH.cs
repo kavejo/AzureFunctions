@@ -1,3 +1,4 @@
+using Azure;
 using MailKit;
 using MailKit.Net.Smtp;
 using MailKit.Security;
@@ -14,12 +15,15 @@ public class SendMailViaEXCH
 {
     private readonly ILogger<SendMailViaEXCH> _logger;
     private EmailMessageRequest? _emailMessageRequest = null!;
-    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "EXCHANGE_SMTP_ENDPOINT", "EXCHANGE_SMTP_PORT", "EXCHANGE_SMTP_USERNAME", "EXCHANGE_SMTP_PASSWORD" };
+    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "EXCHANGE_SMTP_ENDPOINT", "EXCHANGE_SMTP_PORT", "EXCHANGE_SMTP_USERNAME", "EXCHANGE_SMTP_PASSWORD", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL" };
     private readonly List<string> _mandatoryNumericConfigurationEntries = new List<string> { "EXCHANGE_SMTP_PORT" };
     private readonly string? _smtpEndpoint = Environment.GetEnvironmentVariable("EXCHANGE_SMTP_ENDPOINT");
     private readonly string? _smtpPort = Environment.GetEnvironmentVariable("EXCHANGE_SMTP_PORT");
     private readonly string? _smtpUsername = Environment.GetEnvironmentVariable("EXCHANGE_SMTP_USERNAME");
     private readonly string? _smtpPassword = Environment.GetEnvironmentVariable("EXCHANGE_SMTP_PASSWORD");
+    private static string? _openAIEndpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
+    private static string? _openAIKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_KEY");
+    private static string? _modelName = Environment.GetEnvironmentVariable("AZURE_OPENAI_MODEL");
     private int _numericSmtpPort = 0;
 
     public SendMailViaEXCH(ILogger<SendMailViaEXCH> logger)
@@ -108,7 +112,7 @@ public class SendMailViaEXCH
             }
         }
 
-        bool isProcessed = _emailMessageRequest.ProcessContent(_logger);
+        bool isProcessed = _emailMessageRequest.ProcessContent(_logger, new Uri(_openAIEndpoint), new AzureKeyCredential(_openAIKey), _modelName);
         if (!isProcessed)
         {
             return new BadRequestObjectResult("Failed to process message.");

@@ -13,8 +13,11 @@ public class SendMailViaREST
 {
     private readonly ILogger<SendMailViaREST> _logger;
     private EmailMessageRequest? _emailMessageRequest = null!;
-    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_EMAIL_ENDPOINT" };
+    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_EMAIL_ENDPOINT", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL" };
     private readonly string? _resourceEndpoint = Environment.GetEnvironmentVariable("ACS_EMAIL_ENDPOINT");
+    private static string? _openAIEndpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
+    private static string? _openAIKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_KEY");
+    private static string? _modelName = Environment.GetEnvironmentVariable("AZURE_OPENAI_MODEL");
 
     public SendMailViaREST(ILogger<SendMailViaREST> logger)
     {
@@ -83,7 +86,7 @@ public class SendMailViaREST
             }
         }
 
-        bool isProcessed = _emailMessageRequest.ProcessContent(_logger);
+        bool isProcessed = _emailMessageRequest.ProcessContent(_logger, new Uri(_openAIEndpoint), new AzureKeyCredential(_openAIKey), _modelName);
         if (!isProcessed)
         {
             return new BadRequestObjectResult("Failed to process message.");
