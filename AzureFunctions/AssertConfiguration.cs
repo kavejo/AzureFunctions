@@ -38,7 +38,7 @@ namespace AzureFunctions
                 logger.LogInformation(String.Format("  Analysing environment variable: {0}", configValue));
                 if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(configValue)))
                 {
-                    logger.LogInformation(String.Format("    Environment variable {0} is not configured", configValue));
+                    logger.LogError(String.Format("    Environment variable {0} is not configured", configValue));
                     return false;
                 }
             }
@@ -62,7 +62,7 @@ namespace AzureFunctions
                 logger.LogInformation(String.Format("  Verifying environment variable {0} with value {1}", configValue, configValueFromEnv));
                 if (string.IsNullOrEmpty(configValueFromEnv))
                 {
-                    logger.LogInformation(String.Format("    Environment variable {0} is not configured", configValue));
+                    logger.LogError(String.Format("    Environment variable {0} is not configured", configValue));
                     return false;
                 }
 
@@ -70,12 +70,12 @@ namespace AzureFunctions
                 bool conversionSuccessed = int.TryParse(configValueFromEnv, out numericValue);
                 if (!conversionSuccessed)
                 {
-                    logger.LogInformation(String.Format("    Unable to convert variable {0} to Integer", configValue));
+                    logger.LogError(String.Format("    Unable to convert variable {0} to Integer", configValue));
                     return false;
                 }
                 if (numericValue <= 0)
                 {
-                    logger.LogInformation(String.Format("    Environment variable {0} is not a positive Integer", configValue));
+                    logger.LogError(String.Format("    Environment variable {0} is not a positive Integer", configValue));
                     return false;
                 }
             }

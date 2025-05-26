@@ -18,12 +18,12 @@ namespace AzureFunctions
 
             if (ipAddress == null)
             {
-                logger.LogInformation("Request not allowed as either IP Address is NULL");
+                logger.LogError("Request not allowed as either IP Address is NULL");
                 return false;
             }
             if (string.IsNullOrEmpty(_allowedHostsString))
             {
-                logger.LogInformation("Request not allowed as there are no ALLOWED_HOSTS configured");
+                logger.LogError("Request not allowed as there are no ALLOWED_HOSTS configured");
                 return false;
             }
 
@@ -55,14 +55,14 @@ namespace AzureFunctions
                 }
                 catch (SocketException ex)
                 {
-                    logger.LogError(ex, String.Format("Failed to resolve host {0} with exception: {1}. This host will not be added to the list of allowed IPs.", host, ex.Message));
+                    logger.LogError(ex, String.Format("Failed to resolve host {0} with exception: {1}.", host, ex.Message));
                     continue;
                 }
             }
 
             if (!_allowedIPs.Contains(ipAddress.ToString()))
             {
-                logger.LogInformation("Request IP is not part of the IP to which ALLOWED_HOSTS resolves");
+                logger.LogError("Request IP is not part of the IP to which ALLOWED_HOSTS resolves");
                 return false;
             }
 
