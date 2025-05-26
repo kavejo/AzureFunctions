@@ -4,12 +4,10 @@ using Azure.AI.OpenAI;
 using Azure.AI.TextAnalytics;
 using Azure.Communication.Email;
 using Azure.Identity;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Logging;
-using Microsoft.Identity.Client;
 using MimeKit;
+using OpenAI.Assistants;
 using OpenAI.Chat;
-using System.Reflection.Metadata.Ecma335;
 
 namespace AzureFunctions
 {
@@ -171,12 +169,16 @@ namespace AzureFunctions
             logger.LogInformation(String.Format("AZURE_OPENAI_ENDPOINT is: {0}", languageEndpoint == null ? String.Empty : languageEndpoint));
             logger.LogInformation(String.Format("AZURE_OPENAI_MODEL is: {0}", modelName == null ? String.Empty : modelName));
 
-            AzureOpenAIClient azureClient = new AzureOpenAIClient(languageEndpoint, new DefaultAzureCredential());
+            AzureOpenAIClient azureClient = new AzureOpenAIClient(languageEndpoint, new DefaultAzureCredential(), new AzureOpenAIClientOptions(AzureOpenAIClientOptions.ServiceVersion.V2024_12_01_Preview));
             ChatClient chatClient = azureClient.GetChatClient(modelName);
 
             logger.LogInformation(String.Format("Requesting body to OpenAI: {0}", CustomContent));
-            var response = chatClient.CompleteChat(CustomContent).Value;
-            logger.LogInformation(String.Format("Response from OpenAI: {0}", response.Content[0].Text));
+            ChatCompletion completion = chatClient.CompleteChat(
+                [
+                    new SystemChatMessage("You are a helpful assistant that helps writing business email in a work environment. Emails shall be polite and professional."),
+                    new UserChatMessage(CustomContent)
+                ]);
+            logger.LogInformation(String.Format("Response from OpenAI: {0}", completion.Content[0].Text));
 
             return true;
         }

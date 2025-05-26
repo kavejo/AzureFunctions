@@ -111,10 +111,21 @@ public class SendMailViaSMTP
             }
         }
 
-        bool isProcessed = _emailMessageRequest.ProcessContent(_logger, new Uri(_openAIEndpoint), new AzureKeyCredential(_openAIKey), _modelName);
-        if (!isProcessed)
+        try
         {
-            return new BadRequestObjectResult("Failed to process message.");
+            bool isProcessed = _emailMessageRequest.ProcessContent(_logger, new Uri(_openAIEndpoint), new AzureKeyCredential(_openAIKey), _modelName);
+            if (!isProcessed)
+            {
+                return new BadRequestObjectResult("Failed to process message.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(String.Format("An error occurred while preparing the message content. Exception: {0}", ex.Message));
+            return new ObjectResult(String.Format("An error occurred while preparing the message content. Exception: {0}", ex.Message))
+            {
+                StatusCode = 500,
+            };
         }
 
         try
@@ -142,7 +153,7 @@ public class SendMailViaSMTP
         catch (Exception ex)
         {
             _logger.LogError(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client. Exception: {0}", ex.Message));
-            return new ObjectResult(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client.Exception: {0}", ex.Message))
+            return new ObjectResult(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client. Exception: {0}", ex.Message))
             {
                 StatusCode = 500,
             };
