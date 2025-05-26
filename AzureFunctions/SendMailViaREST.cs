@@ -89,10 +89,24 @@ public class SendMailViaREST
             return new BadRequestObjectResult("Failed to process message.");
         }
 
-        EmailClient emailClient = new EmailClient(new Uri(_resourceEndpoint), new DefaultAzureCredential());
-        EmailSendOperation emailSendOperation = await emailClient.SendAsync(WaitUntil.Completed, _emailMessageRequest.RetrieveMessageForREST(_logger));
-       
-        _logger.LogInformation(String.Format("Email message processed successfully. The status is: {0}. The CorrelationID is {1}.", emailSendOperation.Value.Status, emailSendOperation.Id));
-        return new OkObjectResult(String.Format("Email message processed successfully. The status is: {0}.The CorrelationID is {1}.", emailSendOperation.Value.Status, emailSendOperation.Id));
+        try
+        {
+            _logger.LogInformation("Preparing to send email message via Azure Communication Services Email using REST API.");
+            EmailClient emailClient = new EmailClient(new Uri(_resourceEndpoint), new DefaultAzureCredential());
+            EmailSendOperation emailSendOperation = await emailClient.SendAsync(WaitUntil.Completed, _emailMessageRequest.RetrieveMessageForREST(_logger));
+
+            _logger.LogInformation(String.Format("Email message processed successfully. The status is: {0}. The CorrelationID is {1}.", emailSendOperation.Value.Status, emailSendOperation.Id));
+            return new OkObjectResult(String.Format("Email message processed successfully. The status is: {0}.The CorrelationID is {1}.", emailSendOperation.Value.Status, emailSendOperation.Id));
+        }
+        catch (Exception ex) 
+        {
+            _logger.LogError(String.Format("An error occurred while sending the email message via Azure Communication Services Email using REST API.Exception: {0}", ex.Message));
+            return new ObjectResult(String.Format("An error occurred while sending the email message via Azure Communication Services Email using REST API.Exception: {0}", ex.Message))
+            {
+                StatusCode = 500,
+            };
+        }
+
+
     }
 }

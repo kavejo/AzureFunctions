@@ -113,23 +113,35 @@ public class SendMailViaSMTP
             return new BadRequestObjectResult("Failed to process message.");
         }
 
-        MemoryStream ProtocolLogStream = new MemoryStream();
-        SmtpClient client = new SmtpClient(new ProtocolLogger(ProtocolLogStream));
-        client.ServerCertificateValidationCallback = (s, c, h, e) => true;
-        client.SslProtocols = SslProtocols.Tls12;
-        client.RequireTLS = true;
-        client.Connect(_smtpEndpoint, _numericSmtpPort, SecureSocketOptions.StartTls);
-        client.Authenticate(_smtpUsername, _smtpPassword);
-        string result = client.Send(_emailMessageRequest.RetrieveMessageForSMTP(_logger));
-        client.Disconnect(true);
+        try
+        {
+            _logger.LogInformation("Preparing to send email message via Azure Communication Services using SMTP Submission Client.");
+            MemoryStream ProtocolLogStream = new MemoryStream();
+            SmtpClient client = new SmtpClient(new ProtocolLogger(ProtocolLogStream));
+            client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+            client.SslProtocols = SslProtocols.Tls12;
+            client.RequireTLS = true;
+            client.Connect(_smtpEndpoint, _numericSmtpPort, SecureSocketOptions.StartTls);
+            client.Authenticate(_smtpUsername, _smtpPassword);
+            string result = client.Send(_emailMessageRequest.RetrieveMessageForSMTP(_logger));
+            client.Disconnect(true);
 
-        StreamReader ProtocolLogReader = new StreamReader(ProtocolLogStream);
-        ProtocolLogStream.Seek(0, SeekOrigin.Begin);
-        string ProtocolLogContent = ProtocolLogReader.ReadToEnd();
-        ProtocolLogStream.Close();
+            StreamReader ProtocolLogReader = new StreamReader(ProtocolLogStream);
+            ProtocolLogStream.Seek(0, SeekOrigin.Begin);
+            string ProtocolLogContent = ProtocolLogReader.ReadToEnd();
+            ProtocolLogStream.Close();
 
-        _logger.LogInformation(ProtocolLogContent);
-        _logger.LogInformation(String.Format("Email message processed successfully. The status is: {0}.", result));
-        return new OkObjectResult(String.Format("Email message processed successfully. The status is: {0}.", result));
+            _logger.LogInformation(ProtocolLogContent);
+            _logger.LogInformation(String.Format("Email message processed successfully. The status is: {0}.", result));
+            return new OkObjectResult(String.Format("Email message processed successfully. The status is: {0}.", result));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client. Exception: {0}", ex.Message));
+            return new ObjectResult(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client.Exception: {0}", ex.Message))
+            {
+                StatusCode = 500,
+            };
+        }
     }
 }
