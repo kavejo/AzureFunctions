@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 
 namespace AzureFunctions
 {
@@ -20,13 +19,17 @@ namespace AzureFunctions
             "EXCHANGE_SMTP_USERNAME",
             "EXCHANGE_SMTP_PASSWORD"
         };
-        
-        public static bool ValidateConfigurationEntries(ILogger logger, List<string> variablesToValidate = null)
+        private static List<string> _numericConfiguration = new List<string> {
+            "ACS_SMTP_PORT",
+            "EXCHANGE_SMTP_PORT"
+        };
+
+        public static bool VerifyConfiguratiopnEntriesExistence(ILogger logger, List<string>? variablesToValidate = null)
         {
-            logger.LogInformation("Entering AzureFunctions:ValidateConfigurationEntries"); 
+            logger.LogInformation("Entering AzureFunctions:VerifyConfiguratiopnEntriesExistence"); 
             if (variablesToValidate != null)
             {
-                logger.LogInformation("Checking all variables as no subset of them is provided");
+                logger.LogInformation("Checking provided variables instead of all config entries");
                 _mandatoryConfiguration = variablesToValidate;
             }
 
@@ -41,6 +44,43 @@ namespace AzureFunctions
             }
 
             logger.LogInformation("Configuration validation completed successfully");
+            return true;
+        }
+
+        public static bool VerifyNumericConfigurationEntries(ILogger logger, List<string>? variablesToValidate = null)
+        {
+            logger.LogInformation("Entering AzureFunctions:VerifyNumericConfigurationEntries");
+            if (variablesToValidate != null)
+            {
+                logger.LogInformation("Checking provided variables instead of all numeric config entries");
+                _numericConfiguration = variablesToValidate;
+            }
+
+            foreach (string configValue in _numericConfiguration)
+            {
+                string? configValueFromEnv = Environment.GetEnvironmentVariable(configValue);
+                logger.LogInformation(String.Format("  Verifying environment variable {0} with value {1}", configValue, configValueFromEnv));
+                if (string.IsNullOrEmpty(configValueFromEnv))
+                {
+                    logger.LogInformation(String.Format("    Environment variable {0} is not configured", configValue));
+                    return false;
+                }
+
+                int numericValue = 0;
+                bool conversionSuccessed = int.TryParse(configValueFromEnv, out numericValue);
+                if (!conversionSuccessed)
+                {
+                    logger.LogInformation(String.Format("    Unable to convert variable {0} to Integer", configValue));
+                    return false;
+                }
+                if (numericValue <= 0)
+                {
+                    logger.LogInformation(String.Format("    Environment variable {0} is not a positive Integer", configValue));
+                    return false;
+                }
+            }
+
+            logger.LogInformation("Interger configuration validation completed successfully");
             return true;
         }
     }

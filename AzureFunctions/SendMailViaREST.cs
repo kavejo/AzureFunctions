@@ -28,9 +28,9 @@ public class SendMailViaREST
         _logger.LogInformation(String.Format("Host: {0}.", req.Host));
         _logger.LogInformation(String.Format("Method: {0}.", req.Method));
 
-        if (!AssertConfiguration.ValidateConfigurationEntries(_logger, _mandatoryConfigurationEntries))
+        if (!AssertConfiguration.VerifyConfiguratiopnEntriesExistence(_logger, _mandatoryConfigurationEntries))
         {
-            return new ObjectResult(String.Format("One or more of the following environment variables are missing: {0}.", _mandatoryConfigurationEntries))
+            return new ObjectResult(String.Format("One or more of the following environment variables are missing: {0}.", String.Join(",", _mandatoryConfigurationEntries)))
             {
                 StatusCode = 500,
             };

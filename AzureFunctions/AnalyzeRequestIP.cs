@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Net;
-using System.Runtime.CompilerServices;
+using System.Net.Sockets;
 
 namespace AzureFunctions
 {
@@ -26,20 +26,37 @@ namespace AzureFunctions
                 logger.LogInformation("Request not allowed as there are no ALLOWED_HOSTS configured");
                 return false;
             }
+
+            if ((String.Equals(_allowedHostsString, "ALL", StringComparison.OrdinalIgnoreCase) == true) || 
+                (String.Equals(_allowedHostsString, "ANY", StringComparison.OrdinalIgnoreCase) == true) ||
+                (String.Equals(_allowedHostsString, "*", StringComparison.OrdinalIgnoreCase) == true))
+            {
+                logger.LogInformation("Request allowed as ALLOWED_HOSTS is set to any of ALL/ANY/* which permits requests from any client");
+                return true;
+            }
+
             _allowedHosts = _allowedHostsString.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
 
             foreach (string host in _allowedHosts)
             {
                 logger.LogInformation(String.Format("  Resolving hosts: {0}", host));
-                IPAddress[] resolvedIPs = Dns.GetHostAddresses(host);
-                foreach (var resolvedIP in resolvedIPs)
+                try
                 {
-                    logger.LogInformation(String.Format("    Analysing IP: {0}", resolvedIP.ToString()));
-                    if (!_allowedIPs.Contains(resolvedIP.ToString()))
+                    IPAddress[] resolvedIPs = Dns.GetHostAddresses(host);
+                    foreach (var resolvedIP in resolvedIPs)
                     {
-                        logger.LogInformation(String.Format("    Adding IP {0} to the allowed hosts", resolvedIP.ToString()));
-                        _allowedIPs.Add(resolvedIP.ToString());
+                        logger.LogInformation(String.Format("    Analysing IP: {0}", resolvedIP.ToString()));
+                        if (!_allowedIPs.Contains(resolvedIP.ToString()))
+                        {
+                            logger.LogInformation(String.Format("    Adding IP {0} to the allowed hosts", resolvedIP.ToString()));
+                            _allowedIPs.Add(resolvedIP.ToString());
+                        }
                     }
+                }
+                catch (SocketException ex)
+                {
+                    logger.LogError(ex, String.Format("Failed to resolve host {0} with exception: {1}. This host will not be added to the list of allowed IPs.", host, ex.Message));
+                    continue;
                 }
             }
 
@@ -49,7 +66,7 @@ namespace AzureFunctions
                 return false;
             }
 
-            logger.LogInformation("Request IP is is allowed to make requests");
+            logger.LogInformation("Request IP is allowed to make requests");
             return true;
         }
 
