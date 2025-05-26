@@ -180,6 +180,9 @@ namespace AzureFunctions
                 ]);
             logger.LogInformation(String.Format("Response from OpenAI: {0}", completion.Content[0].Text));
 
+            CustomContent = completion.Content[0].Text;
+            logger.LogInformation("Content generated successfully and CustomContent updated with Azure OpenAI text.");
+
             return true;
         }
     }
