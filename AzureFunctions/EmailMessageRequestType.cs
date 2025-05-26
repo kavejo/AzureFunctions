@@ -4,8 +4,9 @@
     {
         SendMail = 0,
         SendMailWithPIIScan = 1,
-        SendMailWithHarmfulContentScan = 2,
-        SendMailWithPIIAndHarmfulContentScan = 3,
-        SendMailWithGeneragedBody = 4
+        SendWithPIIRedacted = 2,
+        SendMailWithHarmfulContentScan = 3,
+        SendMailWithPIIAndHarmfulContentScan = 4,
+        SendMailWithGeneragedBody = 5
     }
 }

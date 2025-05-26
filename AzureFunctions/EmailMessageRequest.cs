@@ -44,6 +44,9 @@ namespace AzureFunctions
                 case EmailMessageRequestType.SendMailWithPIIScan:
                     logger.LogInformation("Processing content for SendMailWithPIIScan request type.");
                     return !PIIPresent(logger, languageEndpoint, languageKey);
+                case EmailMessageRequestType.SendWithPIIRedacted:
+                    logger.LogInformation("Processing content for SendWithPIIRedacted request type.");
+                    return RedactPIIIfPresent(logger, languageEndpoint, languageKey);
                 case EmailMessageRequestType.SendMailWithHarmfulContentScan:
                     logger.LogInformation("Processing content for SendMailWithHarmfulContentScan request type.");
                     return !HarmfulContentPresent(logger, languageEndpoint, languageKey);
@@ -123,6 +126,32 @@ namespace AzureFunctions
             }
 
             return containsPII;
+
+        }
+
+        private bool RedactPIIIfPresent(ILogger logger, Uri? languageEndpoint = null, AzureKeyCredential? languageKey = null)
+        {
+            logger.LogInformation("Entering AzureFunctions:RedactPIIIfPresent");
+
+            if (languageEndpoint == null || languageKey == null)
+            {
+                logger.LogError("Language endpoint and key are necessary for PII detection and redaction.");
+                return false;
+            }
+
+            logger.LogInformation(String.Format("AZURE_OPENAI_ENDPOINT is: {0}", languageEndpoint == null ? String.Empty : languageEndpoint));
+
+            TextAnalyticsClient client = new TextAnalyticsClient(languageEndpoint, new DefaultAzureCredential());
+            PiiEntityCollection PIIEntities = client.RecognizePiiEntities(CustomContent).Value;
+
+            foreach (PiiEntity piiEntity in PIIEntities)
+            {
+                logger.LogInformation(String.Format("  PII Detected: <{0}> or type <{1}> with score <{2}%>.", piiEntity.Text, piiEntity.Category, piiEntity.ConfidenceScore * 100));
+            }
+
+            logger.LogInformation(String.Format("Custom Content post PII Redaction is: {0}", PIIEntities.RedactedText == null ? String.Empty : PIIEntities.RedactedText));
+            CustomContent = PIIEntities.RedactedText;
+            return true;
 
         }
 
