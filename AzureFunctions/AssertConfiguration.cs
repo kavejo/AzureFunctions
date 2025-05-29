@@ -19,7 +19,12 @@ namespace AzureFunctions
             "EXCHANGE_SMTP_USERNAME",
             "EXCHANGE_SMTP_PASSWORD",
             "DEFAULT_SENDER",
-            "DEFAULT_RECIPIENT"
+            "DEFAULT_RECIPIENT",
+            "UNSUB_SUBSCRIPTION", 
+            "UNSUB_RESOURCE_GROUP", 
+            "UNSUB_EMAIL_SERVICE", 
+            "UNSUB_DOMAIN", 
+            "UNSUB_SUPPRESSION_LIST"
         };
         private static List<string> _numericConfiguration = new List<string> {
             "ACS_SMTP_PORT",

@@ -13,7 +13,7 @@ public class SendMailViaREST
 {
     private readonly ILogger<SendMailViaREST> _logger;
     private EmailMessageRequest? _emailMessageRequest = null!;
-    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_EMAIL_ENDPOINT", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL", "DEFAULT_SENDER", "DEFAULT_RECIPIENT" };
+    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_EMAIL_ENDPOINT", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL", "DEFAULT_SENDER", "DEFAULT_RECIPIENT", "UNSUB_SUBSCRIPTION", "UNSUB_RESOURCE_GROUP", "UNSUB_EMAIL_SERVICE", "UNSUB_DOMAIN", "UNSUB_SUPPRESSION_LIST" };
     private readonly string? _resourceEndpoint = Environment.GetEnvironmentVariable("ACS_EMAIL_ENDPOINT");
     private static string? _openAIEndpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
     private static string? _openAIKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_KEY");
@@ -28,6 +28,7 @@ public class SendMailViaREST
     public async Task<IActionResult> Run( [HttpTrigger(AuthorizationLevel.Anonymous, "GET", "POST")] HttpRequest req)
     {
         _logger.LogInformation("Entering AzureFunctions:SendMailViaREST.");
+        _logger.LogInformation(String.Format("Scheme: {0}.", req.Scheme));
         _logger.LogInformation(String.Format("Host: {0}.", req.Host));
         _logger.LogInformation(String.Format("Method: {0}.", req.Method));
 
@@ -157,8 +158,12 @@ public class SendMailViaREST
 
         try
         {
+            _logger.LogInformation("Generating unique unsubscribe link.");
+            UnsubscribeLink unsubscribeLinkObject = new UnsubscribeLink(_emailMessageRequest.To);
+            string unsubscribeLink = unsubscribeLinkObject.GnerateUnsubscribeKey(_logger, req.Scheme, req.Host.ToString());
+
             _logger.LogInformation("Generating e-maail message to send.");
-            EmailMessage emailMessage = _emailMessageRequest.RetrieveMessageForREST(_logger);
+            EmailMessage emailMessage = _emailMessageRequest.RetrieveMessageForREST(_logger, unsubscribeLink);
 
             _logger.LogInformation("Preparing to send email message via Azure Communication Services Email using REST API.");
             EmailClient emailClient = new EmailClient(new Uri(_resourceEndpoint), new DefaultAzureCredential());
