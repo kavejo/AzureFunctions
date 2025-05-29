@@ -74,8 +74,11 @@ public class Unsubscribe
 
         try
         {
-            ArmClient client = new ArmClient(new DefaultAzureCredential()); 
+            _logger.LogInformation("  Connecting to Azure ARM.");
+            ArmClient client = new ArmClient(new DefaultAzureCredential());
+            _logger.LogInformation("  Binding to the Suppression List.");
             ResourceIdentifier suppressionListAddressResourceId = SuppressionListAddressResource.CreateResourceIdentifier(_unsubscribeLink.Subscription, _unsubscribeLink.ResourceGroup, _unsubscribeLink.EmailService, _unsubscribeLink.Domain, _unsubscribeLink.SuppressionList, _unsubscribeLink.OperationId);
+            _logger.LogInformation("  Fetching Suppression Lists.");
             SuppressionListAddressResource suppressionListAddressResource = client.GetSuppressionListAddressResource(suppressionListAddressResourceId);
 
             SuppressionListAddressResourceData suppressionListAddressData = new SuppressionListAddressResourceData()
@@ -87,6 +90,7 @@ public class Unsubscribe
                         )
             };
 
+            _logger.LogInformation("  Updating Supporession List.");
             suppressionListAddressResource.Update(WaitUntil.Completed, suppressionListAddressData);
         }
         catch (RequestFailedException ex)
