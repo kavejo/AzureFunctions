@@ -90,13 +90,13 @@ public class Unsubscribe
                         )
             };
 
-            _logger.LogInformation("  Updating Supporession List.");
+            _logger.LogInformation("  Updating Suppression List.");
             suppressionListAddressResource.Update(WaitUntil.Completed, suppressionListAddressData);
         }
         catch (RequestFailedException ex)
         {
-            _logger.LogError(ex, "Failed to update the suppression list address.");
-            return new ObjectResult("Failed to update the suppression list address.")
+            _logger.LogError(ex, "Failed to update the suppression list.");
+            return new ObjectResult("Failed to update the suppression list.")
             {
                 StatusCode = 500,
             };
