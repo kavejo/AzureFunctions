@@ -12,18 +12,18 @@ namespace AzureFunctions
 
         public static bool IsIpAllowed(IPAddress? ipAddress, ILogger logger)
         {
-            logger.LogInformation("Entering AzureFunctions:AnalyzeRequestIP");
+            logger.LogInformation("Entering AzureFunctions:AnalyzeRequestIP.");
             logger.LogInformation(String.Format("Checking if IP {0} is allowed.", ipAddress == null ? String.Empty : ipAddress.ToString()));
-            logger.LogInformation(String.Format("ALLOWED_HOSTS are: {0}", _allowedHostsString == null ? String.Empty : _allowedHostsString));
+            logger.LogInformation(String.Format("ALLOWED_HOSTS are: {0}.", _allowedHostsString == null ? String.Empty : _allowedHostsString));
 
             if (ipAddress == null)
             {
-                logger.LogError("Request not allowed as either IP Address is NULL");
+                logger.LogError("Request not allowed as either IP Address is NULL.");
                 return false;
             }
             if (string.IsNullOrEmpty(_allowedHostsString))
             {
-                logger.LogError("Request not allowed as there are no ALLOWED_HOSTS configured");
+                logger.LogError("Request not allowed as there are no ALLOWED_HOSTS configured.");
                 return false;
             }
 
@@ -31,7 +31,7 @@ namespace AzureFunctions
                 (String.Equals(_allowedHostsString, "ANY", StringComparison.OrdinalIgnoreCase) == true) ||
                 (String.Equals(_allowedHostsString, "*", StringComparison.OrdinalIgnoreCase) == true))
             {
-                logger.LogInformation("Request allowed as ALLOWED_HOSTS is set to any of ALL/ANY/* which permits requests from any client");
+                logger.LogInformation("Request allowed as ALLOWED_HOSTS is set to any of ALL/ANY/* which permits requests from any client.");
                 return true;
             }
 
@@ -39,16 +39,16 @@ namespace AzureFunctions
 
             foreach (string host in _allowedHosts)
             {
-                logger.LogInformation(String.Format("  Resolving hosts: {0}", host));
+                logger.LogInformation(String.Format("  Resolving hosts: {0}.", host));
                 try
                 {
                     IPAddress[] resolvedIPs = Dns.GetHostAddresses(host);
                     foreach (var resolvedIP in resolvedIPs)
                     {
-                        logger.LogInformation(String.Format("    Analysing IP: {0}", resolvedIP.ToString()));
+                        logger.LogInformation(String.Format("    Analysing IP: {0}.", resolvedIP.ToString()));
                         if (!_allowedIPs.Contains(resolvedIP.ToString()))
                         {
-                            logger.LogInformation(String.Format("    Adding IP {0} to the allowed hosts", resolvedIP.ToString()));
+                            logger.LogInformation(String.Format("    Adding IP {0} to the allowed hosts.", resolvedIP.ToString()));
                             _allowedIPs.Add(resolvedIP.ToString());
                         }
                     }
@@ -62,11 +62,11 @@ namespace AzureFunctions
 
             if (!_allowedIPs.Contains(ipAddress.ToString()))
             {
-                logger.LogError("Request IP is not part of the IP to which ALLOWED_HOSTS resolves");
+                logger.LogError("Request IP is not part of the IP to which ALLOWED_HOSTS resolves.");
                 return false;
             }
 
-            logger.LogInformation("Request IP is allowed to make requests");
+            logger.LogInformation("Request IP is allowed to make requests.");
             return true;
         }
 

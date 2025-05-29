@@ -2,11 +2,11 @@ using Azure;
 using MailKit;
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using MimeKit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
-using Org.BouncyCastle.Cms;
 using System.Security.Authentication;
 using System.Text.Json;
 
@@ -16,7 +16,7 @@ public class SendMailViaEXCH
 {
     private readonly ILogger<SendMailViaEXCH> _logger;
     private EmailMessageRequest? _emailMessageRequest = null!;
-    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "EXCHANGE_SMTP_ENDPOINT", "EXCHANGE_SMTP_PORT", "EXCHANGE_SMTP_USERNAME", "EXCHANGE_SMTP_PASSWORD", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL" };
+    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "EXCHANGE_SMTP_ENDPOINT", "EXCHANGE_SMTP_PORT", "EXCHANGE_SMTP_USERNAME", "EXCHANGE_SMTP_PASSWORD", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL", "DEFAULT_SENDER", "DEFAULT_RECIPIENT" };
     private readonly List<string> _mandatoryNumericConfigurationEntries = new List<string> { "EXCHANGE_SMTP_PORT" };
     private readonly string? _smtpEndpoint = Environment.GetEnvironmentVariable("EXCHANGE_SMTP_ENDPOINT");
     private readonly string? _smtpPort = Environment.GetEnvironmentVariable("EXCHANGE_SMTP_PORT");
@@ -183,6 +183,8 @@ public class SendMailViaEXCH
 
         try
         {
+            _logger.LogInformation("Generating e-maail message to send.");
+            MimeMessage emailMessage = _emailMessageRequest.RetrieveMessageForSMTP(_logger);
 
             _logger.LogInformation("Preparing to send email message via Exchange Server using SMTP Submission Client.");
             MemoryStream ProtocolLogStream = new MemoryStream();
@@ -192,7 +194,7 @@ public class SendMailViaEXCH
             client.RequireTLS = true;
             client.Connect(_smtpEndpoint, _numericSmtpPort, SecureSocketOptions.StartTls);
             client.Authenticate(_smtpUsername, _smtpPassword);
-            string result = client.Send(_emailMessageRequest.RetrieveMessageForSMTP(_logger));
+            string result = client.Send(emailMessage);
             client.Disconnect(true);
 
             StreamReader ProtocolLogReader = new StreamReader(ProtocolLogStream);

@@ -2,6 +2,7 @@ using Azure;
 using MailKit;
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using MimeKit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -15,7 +16,7 @@ public class SendMailViaSMTP
 {
     private readonly ILogger<SendMailViaSMTP> _logger;
     private EmailMessageRequest? _emailMessageRequest = null!;
-    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_SMTP_ENDPOINT", "ACS_SMTP_PORT", "ACS_SMTP_USERNAME", "ACS_SMTP_PASSWORD", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL" };
+    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_SMTP_ENDPOINT", "ACS_SMTP_PORT", "ACS_SMTP_USERNAME", "ACS_SMTP_PASSWORD", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL", "DEFAULT_SENDER", "DEFAULT_RECIPIENT" };
     private readonly List<string> _mandatoryNumericConfigurationEntries = new List<string> { "ACS_SMTP_PORT" };
     private readonly string? _smtpEndpoint = Environment.GetEnvironmentVariable("ACS_SMTP_ENDPOINT");
     private readonly string? _smtpPort = Environment.GetEnvironmentVariable("ACS_SMTP_PORT");
@@ -182,6 +183,9 @@ public class SendMailViaSMTP
 
         try
         {
+            _logger.LogInformation("Generating e-maail message to send.");
+            MimeMessage emailMessage = _emailMessageRequest.RetrieveMessageForSMTP(_logger); 
+            
             _logger.LogInformation("Preparing to send email message via Azure Communication Services using SMTP Submission Client.");
             MemoryStream ProtocolLogStream = new MemoryStream();
             SmtpClient client = new SmtpClient(new ProtocolLogger(ProtocolLogStream));
@@ -190,7 +194,7 @@ public class SendMailViaSMTP
             client.RequireTLS = true;
             client.Connect(_smtpEndpoint, _numericSmtpPort, SecureSocketOptions.StartTls);
             client.Authenticate(_smtpUsername, _smtpPassword);
-            string result = client.Send(_emailMessageRequest.RetrieveMessageForSMTP(_logger));
+            string result = client.Send(emailMessage);
             client.Disconnect(true);
 
             StreamReader ProtocolLogReader = new StreamReader(ProtocolLogStream);

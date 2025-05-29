@@ -13,7 +13,7 @@ public class SendMailViaREST
 {
     private readonly ILogger<SendMailViaREST> _logger;
     private EmailMessageRequest? _emailMessageRequest = null!;
-    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_EMAIL_ENDPOINT", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL" };
+    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_EMAIL_ENDPOINT", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL", "DEFAULT_SENDER", "DEFAULT_RECIPIENT" };
     private readonly string? _resourceEndpoint = Environment.GetEnvironmentVariable("ACS_EMAIL_ENDPOINT");
     private static string? _openAIEndpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
     private static string? _openAIKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_KEY");
@@ -157,9 +157,12 @@ public class SendMailViaREST
 
         try
         {
+            _logger.LogInformation("Generating e-maail message to send.");
+            EmailMessage emailMessage = _emailMessageRequest.RetrieveMessageForREST(_logger);
+
             _logger.LogInformation("Preparing to send email message via Azure Communication Services Email using REST API.");
             EmailClient emailClient = new EmailClient(new Uri(_resourceEndpoint), new DefaultAzureCredential());
-            EmailSendOperation emailSendOperation = await emailClient.SendAsync(WaitUntil.Completed, _emailMessageRequest.RetrieveMessageForREST(_logger));
+            EmailSendOperation emailSendOperation = await emailClient.SendAsync(WaitUntil.Completed, emailMessage);
 
             _logger.LogInformation(String.Format("Email message processed successfully. The status is: {0}. The CorrelationID is {1}.", emailSendOperation.Value.Status, emailSendOperation.Id));
             return new OkObjectResult(String.Format("Email message processed successfully. The status is: {0}.The CorrelationID is {1}.", emailSendOperation.Value.Status, emailSendOperation.Id));
