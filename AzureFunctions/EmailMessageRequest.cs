@@ -1,4 +1,6 @@
-﻿using Azure;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using Azure;
 using Azure.AI.ContentSafety;
 using Azure.AI.OpenAI;
 using Azure.AI.TextAnalytics;
