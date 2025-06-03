@@ -218,7 +218,7 @@ public class SendMailViaSMTP
                 _logger.LogInformation(String.Format("Access token retrieved. The token value is: {0}.", authenticationResult.AccessToken));
             }
 
-            _logger.LogInformation("Preparing to send email message via Azure Communication Services using SMTP Submission Client.");
+            _logger.LogInformation("Preparing to send email message via Azure Communication Services using SMTP Submission Client with Modern Authentication.");
             
             SmtpClient client = new SmtpClient(new ProtocolLogger(ProtocolLogStream));
             client.ServerCertificateValidationCallback = (s, c, h, e) => true;
@@ -253,8 +253,8 @@ public class SendMailViaSMTP
             {
                 _logger.LogWarning("Protocol log stream is not readable.");
             }
-            _logger.LogError(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client. Exception: {0}", ex.Message));
-            return new ObjectResult(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client. Exception: {0}", ex.Message))
+            _logger.LogError(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client with Modern Authentication. Exception: {0}", ex.Message));
+            return new ObjectResult(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client with Modern Authentication. Exception: {0}", ex.Message))
             {
                 StatusCode = 500,
             };

@@ -167,7 +167,7 @@ public class SendMailViaREST
             _logger.LogInformation("Generating e-maail message to send.");
             EmailMessage emailMessage = _emailMessageRequest.RetrieveMessageForREST(_logger, unsubscribeLink);
 
-            _logger.LogInformation("Preparing to send email message via Azure Communication Services Email using REST API.");
+            _logger.LogInformation("Preparing to send email message via Azure Communication Services Email using REST API with Managed Identity.");
             EmailClient emailClient = new EmailClient(new Uri(_resourceEndpoint), new DefaultAzureCredential());
             EmailSendOperation emailSendOperation = await emailClient.SendAsync(WaitUntil.Completed, emailMessage);
 
@@ -176,8 +176,8 @@ public class SendMailViaREST
         }
         catch (Exception ex) 
         {
-            _logger.LogError(String.Format("An error occurred while sending the email message via Azure Communication Services Email using REST API. Exception: {0}", ex.Message));
-            return new ObjectResult(String.Format("An error occurred while sending the email message via Azure Communication Services Email using REST API. Exception: {0}", ex.Message))
+            _logger.LogError(String.Format("An error occurred while sending the email message via Azure Communication Services Email using REST API with Managed Identity. Exception: {0}", ex.Message));
+            return new ObjectResult(String.Format("An error occurred while sending the email message via Azure Communication Services Email using REST API with Managed Identity. Exception: {0}", ex.Message))
             {
                 StatusCode = 500,
             };
