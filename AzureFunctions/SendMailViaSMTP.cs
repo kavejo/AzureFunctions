@@ -4,11 +4,12 @@ using Azure;
 using MailKit;
 using MailKit.Net.Smtp;
 using MailKit.Security;
-using MimeKit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using Microsoft.Identity.Client;
+using MimeKit;
 using System.Security.Authentication;
 using System.Text.Json;
 
@@ -18,12 +19,15 @@ public class SendMailViaSMTP
 {
     private readonly ILogger<SendMailViaSMTP> _logger;
     private EmailMessageRequest? _emailMessageRequest = null!;
-    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_SMTP_ENDPOINT", "ACS_SMTP_PORT", "ACS_SMTP_USERNAME", "ACS_SMTP_PASSWORD", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL", "DEFAULT_SENDER", "DEFAULT_RECIPIENT", "UNSUB_SUBSCRIPTION", "UNSUB_RESOURCE_GROUP", "UNSUB_EMAIL_SERVICE", "UNSUB_DOMAIN", "UNSUB_SUPPRESSION_LIST" };
+    private readonly List<string> _mandatoryConfigurationEntries = new List<string> { "ALLOWED_HOSTS", "ACS_SMTP_ENDPOINT", "ACS_SMTP_PORT", "ACS_SMTP_USERNAME", "ACS_SMTP_APPID", "ACS_SMTP_CLIENTSECRET", "ACS_SMTP_TENANTID", "ACS_SMTP_AUTHORITY", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_MODEL", "DEFAULT_SENDER", "DEFAULT_RECIPIENT", "UNSUB_SUBSCRIPTION", "UNSUB_RESOURCE_GROUP", "UNSUB_EMAIL_SERVICE", "UNSUB_DOMAIN", "UNSUB_SUPPRESSION_LIST" };
     private readonly List<string> _mandatoryNumericConfigurationEntries = new List<string> { "ACS_SMTP_PORT" };
     private readonly string? _smtpEndpoint = Environment.GetEnvironmentVariable("ACS_SMTP_ENDPOINT");
     private readonly string? _smtpPort = Environment.GetEnvironmentVariable("ACS_SMTP_PORT");
     private readonly string? _smtpUsername = Environment.GetEnvironmentVariable("ACS_SMTP_USERNAME");
-    private readonly string? _smtpPassword = Environment.GetEnvironmentVariable("ACS_SMTP_PASSWORD");
+    private readonly string? _smtpAppId = Environment.GetEnvironmentVariable("ACS_SMTP_APPID");
+    private readonly string? _smtpClientSecret = Environment.GetEnvironmentVariable("ACS_SMTP_CLIENTSECRET");
+    private readonly string? _smtpTenantId = Environment.GetEnvironmentVariable("ACS_SMTP_TENANTID");
+    private readonly string? _smtpAuthority = Environment.GetEnvironmentVariable("ACS_SMTP_AUTHORITY");
     private static string? _openAIEndpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
     private static string? _openAIKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_KEY");
     private static string? _modelName = Environment.GetEnvironmentVariable("AZURE_OPENAI_MODEL");
@@ -184,6 +188,8 @@ public class SendMailViaSMTP
             };
         }
 
+        MemoryStream ProtocolLogStream = new MemoryStream();
+
         try
         {
             _logger.LogInformation("Generating unique unsubscribe link.");
@@ -191,16 +197,36 @@ public class SendMailViaSMTP
             string unsubscribeLink = unsubscribeLinkObject.GnerateUnsubscribeKey(_logger, req.Scheme, req.Host.ToString());
 
             _logger.LogInformation("Generating e-maail message to send.");
-            MimeMessage emailMessage = _emailMessageRequest.RetrieveMessageForSMTP(_logger, unsubscribeLink); 
-            
+            MimeMessage emailMessage = _emailMessageRequest.RetrieveMessageForSMTP(_logger, unsubscribeLink);
+
+            _logger.LogInformation("Acquiring Authentication Token via ClientId/ClientSecret.");
+            IConfidentialClientApplication entraIDConfidentialApp = ConfidentialClientApplicationBuilder
+                                                .Create(_smtpAppId)
+                                                .WithClientSecret(_smtpClientSecret)
+                                                .WithAuthority(new Uri(_smtpAuthority))
+                                                .WithTenantId(_smtpTenantId)
+                                                .Build();
+            string[] entraIDScopes = new string[] { "https://communication.azure.com/.default" };
+            AuthenticationResult authenticationResult = await entraIDConfidentialApp.AcquireTokenForClient(entraIDScopes)
+                                                .ExecuteAsync();
+            if (authenticationResult == null || String.IsNullOrEmpty(authenticationResult.AccessToken))
+            {
+                _logger.LogError("Failed to acquire authentication token for Azure Communication Services Email.");
+            }
+            else
+            {
+                _logger.LogInformation(String.Format("Access token retrieved. The token value is: {0}.", authenticationResult.AccessToken));
+            }
+
             _logger.LogInformation("Preparing to send email message via Azure Communication Services using SMTP Submission Client.");
-            MemoryStream ProtocolLogStream = new MemoryStream();
+            
             SmtpClient client = new SmtpClient(new ProtocolLogger(ProtocolLogStream));
             client.ServerCertificateValidationCallback = (s, c, h, e) => true;
             client.SslProtocols = SslProtocols.Tls12;
             client.RequireTLS = true;
             client.Connect(_smtpEndpoint, _numericSmtpPort, SecureSocketOptions.StartTls);
-            client.Authenticate(_smtpUsername, _smtpPassword);
+            var oAuth2Credentials = new SaslMechanismOAuth2(_smtpUsername, authenticationResult.AccessToken);
+            client.Authenticate(oAuth2Credentials);
             string result = client.Send(emailMessage);
             client.Disconnect(true);
 
@@ -215,6 +241,18 @@ public class SendMailViaSMTP
         }
         catch (Exception ex)
         {
+            if (ProtocolLogStream.CanRead)
+            {
+                StreamReader ProtocolLogReader = new StreamReader(ProtocolLogStream);
+                ProtocolLogStream.Seek(0, SeekOrigin.Begin);
+                string ProtocolLogContent = ProtocolLogReader.ReadToEnd();
+                ProtocolLogStream.Close();
+                _logger.LogInformation(ProtocolLogContent);
+            }
+            else
+            {
+                _logger.LogWarning("Protocol log stream is not readable.");
+            }
             _logger.LogError(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client. Exception: {0}", ex.Message));
             return new ObjectResult(String.Format("An error occurred while sending the email message via Azure Communication Services Email using SMTP Submission Client. Exception: {0}", ex.Message))
             {
