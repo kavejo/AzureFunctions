@@ -184,6 +184,8 @@ public class SendMailViaEXCH
             };
         }
 
+        MemoryStream ProtocolLogStream = new MemoryStream();
+
         try
         {
             _logger.LogInformation("Generating unique unsubscribe link.");
@@ -194,7 +196,6 @@ public class SendMailViaEXCH
             MimeMessage emailMessage = _emailMessageRequest.RetrieveMessageForSMTP(_logger, unsubscribeLink);
 
             _logger.LogInformation("Preparing to send email message via Exchange Server using SMTP Submission Client.");
-            MemoryStream ProtocolLogStream = new MemoryStream();
             SmtpClient client = new SmtpClient(new ProtocolLogger(ProtocolLogStream));
             client.ServerCertificateValidationCallback = (s, c, h, e) => true;
             client.SslProtocols = SslProtocols.Tls12;
@@ -215,6 +216,18 @@ public class SendMailViaEXCH
         }
         catch (Exception ex)
         {
+            if (ProtocolLogStream.CanRead)
+            {
+                StreamReader ProtocolLogReader = new StreamReader(ProtocolLogStream);
+                ProtocolLogStream.Seek(0, SeekOrigin.Begin);
+                string ProtocolLogContent = ProtocolLogReader.ReadToEnd();
+                ProtocolLogStream.Close();
+                _logger.LogInformation(ProtocolLogContent);
+            }
+            else
+            {
+                _logger.LogWarning("Protocol log stream is not readable.");
+            }
             _logger.LogError(String.Format("An error occurred while sending the email message via Exchange Server using SMTP Submission Client. Exception: {0}", ex.Message));
             return new ObjectResult(String.Format("An error occurred while sending the email message via Exchange Server using SMTP Submission Client. Exception: {0}", ex.Message))
             {
