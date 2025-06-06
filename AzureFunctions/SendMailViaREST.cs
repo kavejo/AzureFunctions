@@ -20,6 +20,7 @@ public class SendMailViaREST
     private static string? _openAIEndpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
     private static string? _openAIKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_KEY");
     private static string? _modelName = Environment.GetEnvironmentVariable("AZURE_OPENAI_MODEL");
+    private static string? _tenantId = Environment.GetEnvironmentVariable("AZURE_TENANTID");
 
     public SendMailViaREST(ILogger<SendMailViaREST> logger)
     {
@@ -168,7 +169,17 @@ public class SendMailViaREST
             EmailMessage emailMessage = _emailMessageRequest.RetrieveMessageForREST(_logger, unsubscribeLink);
 
             _logger.LogInformation("Preparing to send email message via Azure Communication Services Email using REST API with Managed Identity.");
-            EmailClient emailClient = new EmailClient(new Uri(_resourceEndpoint), new DefaultAzureCredential());
+            EmailClient emailClient = null;
+            if (String.IsNullOrEmpty(_tenantId))
+            {
+                _logger.LogInformation("Using DefaultAzureCredential without Tenant ID for Managed Identity authentication.");
+                emailClient = new EmailClient(new Uri(_resourceEndpoint), new DefaultAzureCredential());
+            }
+            else
+            {
+                _logger.LogInformation(String.Format("Using DefaultAzureCredential with Tenant ID {0} for Managed Identity authentication.", _tenantId));
+                emailClient = new EmailClient(new Uri(_resourceEndpoint), new DefaultAzureCredential(new DefaultAzureCredentialOptions() { TenantId = _tenantId }));
+            }
             EmailSendOperation emailSendOperation = await emailClient.SendAsync(WaitUntil.Completed, emailMessage);
 
             _logger.LogInformation(String.Format("Email message processed successfully. The status is: {0}. The CorrelationID is {1}.", emailSendOperation.Value.Status, emailSendOperation.Id));
